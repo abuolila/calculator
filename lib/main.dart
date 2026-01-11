@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 
 void main() {
   runApp(const CalculatorApp());
@@ -9,10 +10,9 @@ class CalculatorApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(),
-      home: const CalculatorScreen(),
+      home: CalculatorScreen(),
     );
   }
 }
@@ -28,67 +28,120 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   String display = '0';
   double firstNumber = 0;
   String operation = '';
+  bool shouldResetDisplay = false;
 
   void onButtonPressed(String value) {
     setState(() {
       if (value == 'AC') {
         display = '0';
-        firstNumber = 0;
         operation = '';
-      } else if (value == '+' ||
-          value == '-' ||
-          value == '×' ||
-          value == '÷') {
-        firstNumber = double.parse(display);
-        operation = value;
-        display = '0';
-      } else if (value == '=') {
-        double secondNumber = double.parse(display);
-        double result = 0;
-
-        switch (operation) {
-          case '+':
-            result = firstNumber + secondNumber;
-            break;
-          case '-':
-            result = firstNumber - secondNumber;
-            break;
-          case '×':
-            result = firstNumber * secondNumber;
-            break;
-          case '÷':
-            result = firstNumber / secondNumber;
-            break;
+        firstNumber = 0;
+        shouldResetDisplay = false;
+      } else if (value == '+/-') {
+        if (display != '0' && display != 'Error') {
+          display = display.startsWith('-')
+              ? display.substring(1)
+              : '-$display';
         }
+      } else if (value == '%') {
+        try {
+          display = (double.parse(display) / 100).toString();
+        } catch (_) {
+          display = 'Error';
+        }
+      } else if (value == '+' || value == '-' || value == '×' || value == '÷') {
+        try {
+          firstNumber = double.parse(display);
+          operation = value;
+          shouldResetDisplay = true;
+        } catch (_) {
+          display = 'Error';
+        }
+      } else if (value == '=') {
+        try {
+          final secondNumber = double.parse(display);
+          double result;
 
-        display = result.toString();
+          switch (operation) {
+            case '+':
+              result = firstNumber + secondNumber;
+              break;
+            case '-':
+              result = firstNumber - secondNumber;
+              break;
+            case '×':
+              result = firstNumber * secondNumber;
+              break;
+            case '÷':
+              if (secondNumber == 0) {
+                display = 'Error';
+                return;
+              }
+              result = firstNumber / secondNumber;
+              break;
+            default:
+              return;
+          }
+
+          display = result.toString();
+          operation = '';
+          shouldResetDisplay = true;
+        } catch (_) {
+          display = 'Error';
+        }
       } else {
-        if (display == '0') {
+        if (shouldResetDisplay || display == '0' || display == 'Error') {
           display = value;
+          shouldResetDisplay = false;
         } else {
+          if (value == '.' && display.contains('.')) return;
           display += value;
         }
       }
     });
   }
 
-  Widget buildButton(String text,
-      {Color color = Colors.grey, Color textColor = Colors.black}) {
+  Widget glassButton(String text,
+      {bool isOperator = false, bool isWide = false}) {
     return Expanded(
+      flex: isWide ? 2 : 1,
       child: Padding(
-        padding: const EdgeInsets.all(6),
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: color,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(40),
+        padding: const EdgeInsets.all(8),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(40),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: InkWell(
+              onTap: () => onButtonPressed(text),
+              child: Container(
+                height: 70,
+                decoration: BoxDecoration(
+                  color: const Color.fromRGBO(255, 255, 255, 0.15),
+                  border: Border.all(
+                    color: isOperator ? Colors.orangeAccent : Colors.white24,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isOperator
+                          ? const Color.fromRGBO(255, 152, 0, 0.6)
+                          : const Color.fromRGBO(68, 138, 255, 0.4),
+                      blurRadius: 15,
+                    )
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    text,
+                    style: TextStyle(
+                      fontSize: 26,
+                      color:
+                      isOperator ? Colors.orangeAccent : Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
             ),
-            padding: const EdgeInsets.all(20),
-          ),
-          onPressed: () => onButtonPressed(text),
-          child: Text(
-            text,
-            style: TextStyle(fontSize: 26, color: textColor),
           ),
         ),
       ),
@@ -98,58 +151,65 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Container(
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.all(20),
-            child: Text(
-              display,
-              style: const TextStyle(fontSize: 60, color: Colors.white),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF0F2027),
+              Color(0xFF203A43),
+              Color(0xFF2C5364),
+            ],
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(30),
+              alignment: Alignment.bottomRight,
+              child: Text(
+                display,
+                style: const TextStyle(
+                  fontSize: 64,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w300,
+                ),
+              ),
             ),
-          ),
-          Row(
-            children: [
-              buildButton('AC', color: Colors.grey),
-              buildButton('+/-', color: Colors.grey),
-              buildButton('%', color: Colors.grey),
-              buildButton('÷', color: Colors.orange, textColor: Colors.white),
-            ],
-          ),
-          Row(
-            children: [
-              buildButton('7'),
-              buildButton('8'),
-              buildButton('9'),
-              buildButton('×', color: Colors.orange, textColor: Colors.white),
-            ],
-          ),
-          Row(
-            children: [
-              buildButton('4'),
-              buildButton('5'),
-              buildButton('6'),
-              buildButton('-', color: Colors.orange, textColor: Colors.white),
-            ],
-          ),
-          Row(
-            children: [
-              buildButton('1'),
-              buildButton('2'),
-              buildButton('3'),
-              buildButton('+', color: Colors.orange, textColor: Colors.white),
-            ],
-          ),
-          Row(
-            children: [
-              Expanded(flex: 2, child: buildButton('0')),
-              buildButton('.'),
-              buildButton('=', color: Colors.orange, textColor: Colors.white),
-            ],
-          ),
-        ],
+            Row(children: [
+              glassButton('AC'),
+              glassButton('+/-'),
+              glassButton('%'),
+              glassButton('÷', isOperator: true),
+            ]),
+            Row(children: [
+              glassButton('7'),
+              glassButton('8'),
+              glassButton('9'),
+              glassButton('×', isOperator: true),
+            ]),
+            Row(children: [
+              glassButton('4'),
+              glassButton('5'),
+              glassButton('6'),
+              glassButton('-', isOperator: true),
+            ]),
+            Row(children: [
+              glassButton('1'),
+              glassButton('2'),
+              glassButton('3'),
+              glassButton('+', isOperator: true),
+            ]),
+            Row(children: [
+              glassButton('0', isWide: true),
+              glassButton('.'),
+              glassButton('=', isOperator: true),
+            ]),
+            const SizedBox(height: 30),
+          ],
+        ),
       ),
     );
   }
